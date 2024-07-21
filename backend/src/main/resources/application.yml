@@ -1,0 +1,16 @@
+spring:
+    application:
+        name: BlogSpot
+    datasource:
+        url: jdbc:mysql://localhost:3306/blogspot
+        username: root
+        password:
+
+    jpa:
+        hibernate:
+            ddl-auto: update
+        show-sql: true
+
+server:
+    port: 3000
+
