@@ -4,15 +4,15 @@ import {
   BaseLabel,
   BaseInput,
   BaseError,
-  BaseSelect,
 } from "../../components/Base/Form";
 import Modal from "../../components/Base/Modal";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import axios from "axios";
 import formatDate from "../../utils/formateDate";
 import BaseDatagrid from "../../components/Base/DataGrid/BaseDatagrid";
 import { categoryColumns } from "../../utils/columns";
+import axiosInstance from "../../services/axios";
+import eventBus from "../../utils/eventBus";
 const index = ({ setProgress }) => {
   const [isCreateMode, setIsCreateMode] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState();
@@ -21,8 +21,8 @@ const index = ({ setProgress }) => {
   useEffect(() => {
     setProgress((progress) => progress + 10);
 
-    axios
-      .get("http://localhost:3000/categories")
+    axiosInstance
+      .get("categories")
       .then((response) => {
         setProgress((progress) => progress + 20);
 
@@ -65,19 +65,37 @@ const index = ({ setProgress }) => {
   } = useFormik({
     initialValues,
     validationSchema,
-    onSubmit: (values, action) => {
+    onSubmit: (values) => {
       setProgress((progress) => progress + 10);
 
-      axios
-        .post("http://localhost:3000/categories", values)
+      const path = isCreateMode ? "categories" : `categories/${values.id}`;
+      
+      const method = isCreateMode ? "POST" : "PUT";
+
+      axiosInstance({
+        method,
+        url: path,
+        data: values,
+      })
         .then((response) => {
           setProgress((progress) => progress + 20);
 
-          setCategories((prev) => [...prev, response.data]);
+          if (isCreateMode) {
+            setCategories((prev) => [...prev, response.data]);
+          } else {
+            console.log("response.data.id",response.data);
+            setCategories((prev) =>
+              prev.map((category) =>
+                category.id === response.data.id ? response.data : category
+              )
+            );
+          }
 
           closeModal();
         })
-        .catch((error) => {})
+        .catch((error) => {
+          console.error("An error occurred:", error);
+        })
         .finally(() => {
           setProgress(100);
         });
@@ -102,6 +120,9 @@ const index = ({ setProgress }) => {
    */
   const handleEdit = (row) => {
     setValues(row);
+
+    setIsCreateMode(false);
+    
     openModal();
   };
 
@@ -112,9 +133,17 @@ const index = ({ setProgress }) => {
    */
   const handleDelete = (row) => {
     eventBus.emit("open-confirm-modal", {
-      agree: async () => {},
-      disagree: () => {
-        console.log("request cancelled");
+      agree: () => {
+        axiosInstance
+          .delete(`categories/${row.id}`)
+          .then((response) => {
+            if (response.status == 204) {
+              setCategories(
+                categories.filter((category) => category.id != row.id)
+              );
+            }
+          })
+          .catch((error) => {});
       },
     });
   };
